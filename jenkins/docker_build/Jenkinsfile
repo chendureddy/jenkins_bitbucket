@@ -1,73 +1,45 @@
 pipeline{
     agent any
-    tools{
-        jdk 'jdk'
-        maven 'maven'
-    }
     environment {
-        SCANNER_HOME=tool 'sonarqube-scanner'
-    } 
+        PATH = "$PATH:/usr/share/maven"
+    }
     stages{
-        stage("Compile"){
+        stage('Compile'){
             steps{
-                sh "mvn clean compile"
-           }
-        }
-        stage("Test Cases"){
-            steps{
-                sh "mvn test"
-           }
-        }
-        stage("Sonarqube Analysis "){
-            steps{
-                withSonarQubeEnv('sonarqube-server') {
-                    sh ''' $SCANNER_HOME/bin/sonarqube-scanner -Dsonar.projectName=project1 \
-                    -Dsonar.java.binaries=. \
-                    -Dsonar.projectKey=project1 '''
-    
-                }
+                sh 'mvn clean package'
             }
         }
-        stage("OWASP Dependency Check"){
-            steps{
-                dependencyCheck additionalArguments: '--scan ./ --format HTML ', odcInstallation: 'DP-check'
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-            }
-        }
-         stage("Build"){
-            steps{
-                sh " mvn clean install"
-            }
-        }
+
         stage('image_build'){
-           steps{
+            steps{
                 sh '''
                     echo "buildinng image"
-                    docker image build -t image2 ${WORKSPACE}/docker
+                    docker image build -t myapp ${WORKSPACE}/docker
                     '''
-           }
+            }
         }
+
         stage('image_tagging'){
             steps{
                 sh '''
                     echo "taggig image"
-                    docker image tag image2:latest ranjana000/image2:latest
+                    docker image tag myapp:latest chendureddy/myapp:latest
                     '''
             }
         }
         stage('image_push'){
             steps{
                 sh '''
-                    docker login -u ranjana000 -p shrinidhi@1
-                    docker image push ranjana000/image2:latest
+                    docker login -u chendureddy -p Chendu@9009
+                    docker image push chendureddy/myapp:latest
                     '''
             }
         }
-        stage('deploy'){
+         stage('deploy'){
             steps{
                 sh '''
                     echo "creating container..."
-                    docker container run -d --name container2 ranjana000/image2:latest bash
+                    docker container run -d --name Server01 -p 9002:80 chendureddy/myapp:latest bash
                     '''
             }
         }

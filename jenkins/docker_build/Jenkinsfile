@@ -1,55 +1,56 @@
-pipeline{
-    agent any
-    environment {
-        PATH = "$PATH:/usr/share/maven"
-    }
-    stages{
-        stage('Compile'){
-            steps{
-                sh 'mvn clean package'
-            }
-        }
+pipeline {
 
-        stage('image_build'){
-            steps{
-                sh '''
-                    echo "buildinng image"
-                    docker image build -t myapp ${WORKSPACE}/docker
-                    '''
-            }
-        }
+  environment {
+    dockerimagename = "chendureddy/react-app"
+    dockerImage = ""
+  }
 
-        stage('image_tagging'){
-            steps{
-                sh '''
-                    echo "taggig image"
-                    docker image tag myapp:latest chendureddy/myapp:latest
-                    '''
-            }
-        }
-        stage('image_push'){
-            steps{
-                sh '''
-                    docker login -u chendureddy -p Chendu@9009
-                    docker image push chendureddy/myapp:latest
-                    '''
-            }
-        }
-         // stage('deploy'){
-         //    steps{
-         //        sh '''
-         //            echo "creating container..."
-         //            docker container run -d --name Server -p 9000:80 chendureddy/myapp:latest bash
-         //            '''
-            }
-        }
-         stage('deploy k8s'){
-             steps{
-                script{
-                     kubernetesDeploy(config: "deploymentservice.yml", kubeconfigId: "kubernetes")
-                }
-            }
-        }
+ pipeline {
+
+  environment {
+    dockerimagename = "chendureddy/react-app"
+    dockerImage = ""
+  }
+
+  agent any
+
+  stages {
+
+    stage('Checkout Source') {
+      steps {
+        git 'https://github.com/chendureddy/Node.js_project.git'
+      }
     }
+
+    stage('Build image') {
+      steps{
+        script {
+          dockerImage = docker.build dockerimagename
+        }
+      }
+    }
+
+    stage('Pushing Image') {
+      environment {
+               registryCredential = 'dockerhublogin'
+           }
+      steps{
+        script {
+          docker.withRegistry( 'https://registry.hub.docker.com', registryCredential ) {
+            dockerImage.push("latest")
+          }
+        }
+      }
+    }
+
+    stage('Deploying React.js container to Kubernetes') {
+      steps {
+        script {
+          kubernetesDeploy(configs: "deployment.yaml", "service.yaml", kubeconfigId: "kubernetes")
+        }
+      }
+    }
+
+  }
+
 }
-	

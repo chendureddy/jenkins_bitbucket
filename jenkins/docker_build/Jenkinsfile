@@ -35,12 +35,19 @@ pipeline{
                     '''
             }
         }
-         stage('deploy'){
-            steps{
-                sh '''
-                    echo "creating container..."
-                    docker container run -d --name Server -p 9000:80 chendureddy/myapp:latest bash
-                    '''
+         // stage('deploy'){
+         //    steps{
+         //        sh '''
+         //            echo "creating container..."
+         //            docker container run -d --name Server -p 9000:80 chendureddy/myapp:latest bash
+         //            '''
+            }
+        }
+         stage('deploy k8s'){
+             steps{
+                script{
+                     kubernetesDeploy(config: "deploymentservice.yml", kubeconfigId: "kubernetes")
+                }
             }
         }
     }

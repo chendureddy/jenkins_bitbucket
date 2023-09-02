@@ -1,49 +1,47 @@
- pipeline {
-
-  environment {
-    dockerimagename = "chendureddy/nodeapp"
-    dockerImage = ""
-  }
-
-  agent any
-
-  stages {
-
-    stage('Checkout Source') {
-      steps {
-        git 'https://github.com/chendureddy/Node.js_project.git'
-      }
+pipeline{
+    agent any
+    environment {
+        PATH = "$PATH:/usr/share/maven"
     }
-
-    stage('Build image') {
-      steps{
-        script {
-          dockerImage = docker.build dockerimagename
+    stages{
+        stage('Compile'){
+            steps{
+                sh 'mvn clean package'
+            }
         }
-      }
-    }
 
-    stage('Pushing Image') {
-      environment {
-               registryCredential = 'dockerhublogin'
-           }
-      steps{
-        script {
-          docker.withRegistry( 'https://registry.hub.docker.com', registryCredential ) {
-            dockerImage.push("latest")
-          }
+        stage('image_build'){
+            steps{
+                sh '''
+                    echo "buildinng image"
+                    docker image build -t myapp ${WORKSPACE}/docker
+                    '''
+            }
         }
-      }
-    }
 
-    stage('Deploying React.js container to Kubernetes') {
-      steps {
-        script {
-          kubernetesDeploy(configs: "deploymentservice.yml", kubeconfigId: "kubernetes")
+        stage('image_tagging'){
+            steps{
+                sh '''
+                    echo "taggig image"
+                    docker image tag myapp:latest chendureddy/myapp:latest
+                    '''
+            }
         }
-      }
+        stage('image_push'){
+            steps{
+                sh '''
+                    docker login -u chendureddy -p Chendu@9009
+                    docker image push chendureddy/myapp:latest
+                    '''
+            }
+        }
+         stage('deploy'){
+            steps{
+                sh '''
+                    echo "creating container..."
+                    docker container run -d --name Server01 -p 9002:80 chendureddy/myapp:latest bash
+                    '''
+            }
+        }
     }
-
-  }
-
 }

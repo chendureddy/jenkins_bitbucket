@@ -9,19 +9,7 @@ pipeline{
                 sh 'mvn clean package'
             }
         }
-        stage('SonarQube analysis') {
-            steps{
-                withSonarQubeEnv('sonarqube-server'){
-                sh 'mvn clean install sonar:sonar -Dsonar.projectKey=project2'
-                }
-            }
-        }
-        stage('OwASP_SCAN'){
-            steps{
-                dependencyCheck additionalArguments:' --scan ./ ', odcInstallation: 'DP-check'
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-            }
-        }
+        
         stage('image_build'){
             steps{
                 sh '''
@@ -63,12 +51,4 @@ pipeline{
             }
         }
 
-        stage('deploy k8s'){
-             steps{
-                script{
-                     kubernetesDeploy(config: "deploymentservice.yml", kubeconfigId: "kubernetes")
-                }
-            }
-        }
-    }
-}
+        

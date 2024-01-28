@@ -1,0 +1,74 @@
+pipeline{
+    agent any
+    environment {
+        PATH = "$PATH:/usr/share/maven"
+    }
+    stages{
+        stage('Compile'){
+            steps{
+                sh 'mvn clean package'
+            }
+        }
+        stage('SonarQube analysis') {
+            steps{
+                withSonarQubeEnv('sonarqube-server'){
+                sh 'mvn clean install sonar:sonar -Dsonar.projectKey=project2'
+                }
+            }
+        }
+        stage('OwASP_SCAN'){
+            steps{
+                dependencyCheck additionalArguments:' --scan ./ ', odcInstallation: 'DP-check'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+        stage('image_build'){
+            steps{
+                sh '''
+                    echo "buildinng image"
+                    docker image build -t newapp ${WORKSPACE}/docker
+                    '''
+            }
+        }
+
+
+        stage('image_tagging'){
+            steps{
+                sh '''
+                    echo "taggig image"
+                    docker image tag newapp:latest chendureddy/newapp:latest
+                    '''
+            }
+        }
+        stage('image_push'){
+            steps{
+                sh '''
+                    docker login -u chendureddy -p Chendu@9009
+                    docker image push chendureddy/newapp:latest
+                    '''
+            }
+        }
+        stage('TRIVY'){
+            steps{
+                sh " trivy image  chendureddy/newapp:latest "
+
+            }
+        }
+         stage('deploy'){
+            steps{
+                sh '''
+                    echo "creating container..."
+                    docker container run -d --name Server -p 9000:90 chendureddy/newapp:latest bash
+                    '''
+            }
+        }
+
+        stage('deploy k8s'){
+             steps{
+                script{
+                     kubernetesDeploy(config: "deploymentservice.yml", kubeconfigId: "kubernetes")
+                }
+            }
+        }
+    }
+}

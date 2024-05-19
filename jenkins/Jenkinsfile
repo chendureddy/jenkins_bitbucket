@@ -36,12 +36,6 @@ pipeline{
                     '''
             }
         }
-        stage('TRIVY'){
-            steps{
-                sh " trivy image  chendureddy/newapp:latest "
-
-            }
-        }
          stage('deploy'){
             steps{
                 sh '''
